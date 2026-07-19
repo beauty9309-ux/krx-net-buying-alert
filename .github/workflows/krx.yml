@@ -1,0 +1,35 @@
+name: KRX Net-Buying Alert
+
+on:
+  schedule:
+    - cron: '0 12 * * 1-5'   # 매주 월~금 12:00 UTC = 한국시간 21:00
+  workflow_dispatch:          # 수동 실행 버튼 (테스트용)
+    inputs:
+      force:
+        description: '거래일이 아니어도 강제 전송(테스트)'
+        type: boolean
+        default: false
+
+jobs:
+  send-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 내려받기
+        uses: actions/checkout@v4
+
+      - name: 파이썬 준비
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 필요한 도구 설치
+        run: pip install -r requirements.txt
+
+      - name: 순매수율 분석 & 텔레그램 전송
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          FORCE: ${{ (inputs.force && '1') || '' }}
+        run: python krx_alert_cloud.py
