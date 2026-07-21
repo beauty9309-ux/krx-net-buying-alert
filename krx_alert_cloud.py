@@ -120,17 +120,35 @@ def 텔레그램_전송(메시지):
     return r.json().get("ok", False)
 
 
+# 마지막으로 전송한 거래일을 기록하는 파일 (같은 날 중복 전송을 막는 용도)
+STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_sent.txt")
+
+
+def 마지막_전송일_읽기():
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+
+def 마지막_전송일_쓰기(날짜):
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        f.write(날짜)
+
+
 def main():
     지금_한국 = datetime.now(ZoneInfo("Asia/Seoul"))
-    오늘 = 지금_한국.strftime("%Y%m%d")
 
     s = requests.Session()
     로그인(s)
     기준일 = 최근_거래일_찾기(s, 지금_한국.replace(tzinfo=None))
 
-    # 오늘이 거래일이 아니면(주말·공휴일) 전송하지 않음
-    if 기준일 != 오늘 and not FORCE:
-        print(f"⏭️ 오늘({날짜예쁘게(오늘)})은 휴장일 → 전송 건너뜀 (최근 거래일 {기준일})")
+    # 아직 전송하지 않은 '새로운 거래일' 데이터가 있을 때만 전송한다.
+    # (실행이 자정을 넘겨 늦어져도, 주말·공휴일이어도 올바르게 동작)
+    마지막_전송일 = 마지막_전송일_읽기()
+    if 기준일 == 마지막_전송일 and not FORCE:
+        print(f"⏭️ 최근 거래일({날짜예쁘게(기준일)}) 데이터는 이미 전송함 → 건너뜀")
         return
 
     시총맵 = {mktId: 시가총액_가져오기(s, 기준일, mktId) for mktId, _ in 시장목록}
@@ -141,6 +159,10 @@ def main():
 
     성공 = 텔레그램_전송(메시지만들기(결과, 기준일))
     print("📤 텔레그램 전송:", "성공" if 성공 else "실패", f"(기준일 {기준일})")
+
+    # 실제 전송에 성공했을 때만 '마지막 전송일'을 갱신 (테스트 강제전송은 갱신 안 함)
+    if 성공 and not FORCE:
+        마지막_전송일_쓰기(기준일)
 
 
 if __name__ == "__main__":
