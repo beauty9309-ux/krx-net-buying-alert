@@ -2,7 +2,11 @@ name: KRX Net-Buying Alert
 
 on:
   schedule:
-    - cron: '0 12 * * 1-5'   # 매주 월~금 12:00 UTC = 한국시간 21:00
+    # 한국시간(KST) 기준. GitHub가 러너를 못 구하거나 지연되어 실패해도
+    # 뒤 시간대가 대신 보내주도록 백업 시각을 둠. (이미 보낸 날은 자동 skip → 중복 없음)
+    - cron: '0 12 * * 1-5'    # 21:00 KST (주 실행)
+    - cron: '30 13 * * 1-5'   # 22:30 KST (백업 1)
+    - cron: '30 14 * * 1-5'   # 23:30 KST (백업 2)
   workflow_dispatch:          # 수동 실행 버튼 (테스트용)
     inputs:
       force:
